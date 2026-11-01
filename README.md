@@ -130,6 +130,8 @@ The challenge asks us to make reasonable assumptions when something is ambiguous
 
 Real conversations with the agent are in [`examples/`](examples/). Each one includes the tools the agent called and what they returned.
 
+The agent serves Brazilian customers, so the conversations are in Portuguese, kept exactly as generated. Each file starts with an English summary of the scenario and what it demonstrates.
+
 | # | Scenario | What it shows |
 |---|---|---|
 | [01](examples/01_catalog_search.md) | Violões up to R$ 1,000, then a sold-out model | Search by category + price, PIX price, sold-out/discontinued handling, alternatives |
