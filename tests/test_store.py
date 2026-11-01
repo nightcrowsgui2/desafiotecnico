@@ -64,3 +64,9 @@ def test_tool_enums_match_the_data():
     from agent import tools
     assert set(tools.Category.__args__) == set(store.category_names())
     assert set(tools.PolicyTopic.__args__) == set(store.policy_topics())
+
+
+def test_search_with_no_match_explains_how_to_search_by_type():
+    result = store.search_products(query="violão")
+    assert result["total_encontrado"] == 0
+    assert "category" in result["dica"]

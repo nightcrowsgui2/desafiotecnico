@@ -117,6 +117,10 @@ def search_products(query: str = "", category: str = "", min_price: float = 0,
         products = products[products["price_brl"] <= max_price]
 
     products = products.sort_values("price_brl")
+    if products.empty and query:
+        return {"total_encontrado": 0,
+                "dica": "Nenhum produto com esse nome. Para buscar por tipo de instrumento "
+                        "(violão, guitarra...), use o parâmetro category e deixe query vazio."}
     return {
         "total_encontrado": len(products),
         "produtos": [_format_product(r) for _, r in products.head(limit).iterrows()],

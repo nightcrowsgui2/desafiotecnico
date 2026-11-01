@@ -38,9 +38,11 @@ def search_products(query: str = "", category: Category | None = None,
     """Search the store catalog. Always use this before stating any price, stock or promotion.
 
     Args:
-        query: Words from the product name, brand or model (e.g. "Takamine GD20", "Yamaha").
-            Leave empty to list a whole category.
-        category: Restrict to one product category.
+        query: Words that appear in the product NAME: brand, model or finish
+            (e.g. "Takamine GD20", "Yamaha", "Sunburst"). Product names do not contain the
+            instrument type, so leave it empty when the customer asks for a type.
+        category: The instrument type (e.g. "Violões" for any violão). Use it whenever the
+            customer mentions a kind of instrument.
         min_price: Minimum table price in BRL (0 = no minimum).
         max_price: Maximum table price in BRL (0 = no maximum).
 
