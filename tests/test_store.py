@@ -58,3 +58,9 @@ def test_policies_are_split_by_topic():
     assert "horario" in store.policy_topics()
     assert "09:00 às 13:00" in store.get_policy("horario")
     assert "Tópico desconhecido" in store.get_policy("nope")
+
+
+def test_tool_enums_match_the_data():
+    from agent import tools
+    assert set(tools.Category.__args__) == set(store.category_names())
+    assert set(tools.PolicyTopic.__args__) == set(store.policy_topics())
