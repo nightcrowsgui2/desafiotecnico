@@ -48,6 +48,18 @@ def search_products(query: str = "", category: str = "",
 
 
 @_logged
+def get_installment_options(price: float) -> dict:
+    """List the credit card installment options (no interest) for a price, applying the store's
+    minimum installment rules. Always use it before saying in how many installments something
+    can be paid; never compute installments yourself.
+
+    Args:
+        price: Final price in BRL (use the promotional price when there is an active promotion).
+    """
+    return store.installment_options(price)
+
+
+@_logged
 def get_order_status(order_id: int, customer_contact: str) -> dict:
     """Look up an order. Ask the customer for BOTH the order number and the e-mail or phone
     used in the purchase before calling; never guess them.
@@ -90,4 +102,4 @@ def handoff_to_human(reason: str, summary: str, customer_contact: str = "") -> s
     return "Encaminhado à equipe. Prazo de retorno: até 24 horas úteis."
 
 
-ALL_TOOLS = [search_products, get_order_status, get_store_policy, handoff_to_human]
+ALL_TOOLS = [search_products, get_installment_options, get_order_status, get_store_policy, handoff_to_human]

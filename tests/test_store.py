@@ -85,3 +85,12 @@ def test_tools_accept_arguments_the_way_the_gemini_sdk_passes_them():
     result = invoke_function_from_dict_args({"category": "Violões", "max_price": 1000}, tools.search_products)
     assert result["total_encontrado"] > 0
     assert invoke_function_from_dict_args({"topic": "horario"}, tools.get_store_policy)
+
+
+def test_installments_respect_minimum_per_tier():
+    # R$ 439,20: 6x would be R$ 73,20, below the R$ 80 minimum for 4x-6x
+    options = store.installment_options(439.2)
+    assert [o["parcelas"] for o in options["opcoes_sem_juros"]] == [2, 3, 4, 5]
+    assert options["maximo_de_parcelas"] == 5
+    assert store.installment_options(2199)["maximo_de_parcelas"] == 12
+    assert store.installment_options(90)["opcoes_sem_juros"] == []

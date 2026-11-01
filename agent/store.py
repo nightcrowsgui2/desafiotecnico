@@ -130,6 +130,25 @@ def search_products(query: str = "", category: str = "", min_price: float = 0,
     }
 
 
+# Minimum installment per range of installments (policy section "pagamento", tiers of section 3.1).
+INSTALLMENT_MINIMUMS = [(3, 50.0), (6, 80.0), (12, 100.0)]
+
+
+def installment_options(price: float) -> dict:
+    options = []
+    for n in range(2, 13):
+        minimum = next(m for limit, m in INSTALLMENT_MINIMUMS if n <= limit)
+        value = round(price / n, 2)
+        if value >= minimum:
+            options.append({"parcelas": n, "valor_parcela": value})
+    return {
+        "valor": price,
+        "opcoes_sem_juros": options,
+        "maximo_de_parcelas": options[-1]["parcelas"] if options else 1,
+        "regra": "até 3x: parcela mínima R$ 50; 4x a 6x: R$ 80; 7x a 12x: R$ 100",
+    }
+
+
 def get_order(order_id: int, contact: str) -> dict:
     t = _tables()
     order = t["orders"][t["orders"]["order_id"] == order_id]
