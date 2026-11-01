@@ -123,6 +123,7 @@ The challenge asks us to make reasonable assumptions when something is ambiguous
 | Order totals don't always match `price × quantity` (orders 3 and 20), and order 3 contains a product that is "coming soon". | Treat `total_brl` as what the customer actually paid and report it as is; the agent does not recalculate past orders. |
 | Two customers share the same e-mail (`bruno.martins@jmail.com`, ids 11 and 43). | Harmless here: verification compares against the customer **of that order**. |
 | The manual claims "over 300 instruments"; the CSV has 64, with no wind or orchestral string instruments. | The CSV is the source of truth. If asked for a category with no products, the agent says so instead of inventing items. |
+| The brief does not state the agent's language. | The agent speaks Brazilian Portuguese: the store and its customers are in Brazil, the sample questions in the brief are in Portuguese, and the manual's tone guidelines assume Portuguese. Deliverables meant for the evaluators (README, this documentation) are in English, as the selection process requires. |
 | The store's "today" is not defined. | The agent uses the real current date. Since the sample orders are from 2025–2026, most are outside the return windows, which is a good test of the policy logic. |
 
 ## Example conversations
