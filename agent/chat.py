@@ -8,7 +8,7 @@ from google.genai import types
 from agent import tools
 from agent.prompt import build_system_prompt
 
-DEFAULT_MODEL = "gemini-3.5-flash"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 
 
 class StoreAgent:

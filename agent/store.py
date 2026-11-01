@@ -102,11 +102,14 @@ def _format_product(row: pd.Series) -> dict:
 
 
 def search_products(query: str = "", category: str = "", min_price: float = 0,
-                    max_price: float = 0, limit: int = 8) -> dict:
+                    max_price: float = 0, limit: int = 15) -> dict:
     products = _tables()["products"]
     if category:
         wanted = normalize(category)
         products = products[products["category"].map(normalize).str.contains(wanted)]
+        if products.empty:
+            return {"total_encontrado": 0,
+                    "dica": f"Categoria desconhecida. Use uma destas: {', '.join(category_names())}."}
     if query:
         for token in normalize(query).split():
             # "gd20" should also match "gd 20" and vice-versa

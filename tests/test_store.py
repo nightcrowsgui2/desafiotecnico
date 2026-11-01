@@ -60,13 +60,28 @@ def test_policies_are_split_by_topic():
     assert "Tópico desconhecido" in store.get_policy("nope")
 
 
-def test_tool_enums_match_the_data():
+def test_tool_docstrings_list_every_valid_option():
+    # The valid values live in the docstrings (the SDK cannot convert Literal args), so keep them in sync.
     from agent import tools
-    assert set(tools.Category.__args__) == set(store.category_names())
-    assert set(tools.PolicyTopic.__args__) == set(store.policy_topics())
+    assert all(c in tools.search_products.__doc__ for c in store.category_names())
+    assert all(t in tools.get_store_policy.__doc__ for t in store.policy_topics())
+
+
+def test_unknown_category_lists_the_valid_ones():
+    assert "Violões" in store.search_products(category="Pianos de cauda")["dica"]
 
 
 def test_search_with_no_match_explains_how_to_search_by_type():
     result = store.search_products(query="violão")
     assert result["total_encontrado"] == 0
     assert "category" in result["dica"]
+
+
+def test_tools_accept_arguments_the_way_the_gemini_sdk_passes_them():
+    # The SDK converts the model's JSON args using the type hints before calling the tool;
+    # an Optional[Literal] hint used to break here even though direct calls worked.
+    from google.genai._extra_utils import invoke_function_from_dict_args
+    from agent import tools
+    result = invoke_function_from_dict_args({"category": "Violões", "max_price": 1000}, tools.search_products)
+    assert result["total_encontrado"] > 0
+    assert invoke_function_from_dict_args({"topic": "horario"}, tools.get_store_policy)

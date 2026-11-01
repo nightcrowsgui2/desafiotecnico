@@ -3,19 +3,8 @@
 import functools
 import json
 from datetime import datetime
-from typing import Literal
 
 from agent import store
-
-Category = Literal[
-    "Guitarras", "Baixos", "Baterias e Percussão", "Teclados e Pianos", "Violões",
-    "Instrumentos de Sopro (Madeiras)", "Instrumentos de Sopro (Metais)",
-    "Cordas Orquestrais", "Ukuleles",
-]
-PolicyTopic = Literal[
-    "sobre_a_loja", "horario", "pagamento", "trocas_e_devolucoes", "frete_e_entrega",
-    "promocoes", "garantia", "reclamacoes", "privacidade",
-]
 
 HANDOFF_FILE = store.ROOT / "handoffs" / "handoffs.jsonl"
 
@@ -26,14 +15,18 @@ call_log: list[dict] = []
 def _logged(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        result = fn(*args, **kwargs)
+        try:
+            result = fn(*args, **kwargs)
+        except Exception as e:
+            call_log.append({"tool": fn.__name__, "args": kwargs, "result": f"ERRO: {e!r}"})
+            raise
         call_log.append({"tool": fn.__name__, "args": kwargs, "result": result})
         return result
     return wrapper
 
 
 @_logged
-def search_products(query: str = "", category: Category | None = None,
+def search_products(query: str = "", category: str = "",
                     min_price: float = 0, max_price: float = 0) -> dict:
     """Search the store catalog. Always use this before stating any price, stock or promotion.
 
@@ -41,15 +34,17 @@ def search_products(query: str = "", category: Category | None = None,
         query: Words that appear in the product NAME: brand, model or finish
             (e.g. "Takamine GD20", "Yamaha", "Sunburst"). Product names do not contain the
             instrument type, so leave it empty when the customer asks for a type.
-        category: The instrument type (e.g. "Violões" for any violão). Use it whenever the
-            customer mentions a kind of instrument.
+        category: The instrument type. Use it whenever the customer mentions a kind of
+            instrument. One of: Guitarras, Baixos, Baterias e Percussão, Teclados e Pianos,
+            Violões, Instrumentos de Sopro (Madeiras), Instrumentos de Sopro (Metais),
+            Cordas Orquestrais, Ukuleles. Leave empty for any category.
         min_price: Minimum table price in BRL (0 = no minimum).
         max_price: Maximum table price in BRL (0 = no maximum).
 
-    Returns up to 8 products sorted by price, with table price, PIX price or active promotion,
+    Returns up to 15 products sorted by price, with table price, PIX price or active promotion,
     and availability. `total_encontrado` tells how many matched in total.
     """
-    return store.search_products(query, category or "", min_price, max_price)
+    return store.search_products(query, category, min_price, max_price)
 
 
 @_logged
@@ -65,10 +60,14 @@ def get_order_status(order_id: int, customer_contact: str) -> dict:
 
 
 @_logged
-def get_store_policy(topic: PolicyTopic) -> str:
+def get_store_policy(topic: str) -> str:
     """Read the official store policy on a topic. Use it for any question about the store itself:
     address and contacts (sobre_a_loja), opening hours, payment and installments, returns and
     exchanges, shipping, promotion rules, warranty, complaints, and personal data (privacidade).
+
+    Args:
+        topic: One of: sobre_a_loja, horario, pagamento, trocas_e_devolucoes, frete_e_entrega,
+            promocoes, garantia, reclamacoes, privacidade.
     """
     return store.get_policy(topic)
 
