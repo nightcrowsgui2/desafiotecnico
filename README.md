@@ -6,13 +6,12 @@ It answers customers in Brazilian Portuguese as **Lia**, the store's virtual ass
 The guiding principle was the one in the challenge e-mail: **solve it in the simplest way possible**. The whole agent is under 500 lines of Python (docstrings included), one LLM, five small tools and no vector database.
 
 ```
-Customer ──► CLI ──► Gemini 3.5 Flash-Lite (system prompt = persona + rules)
-                         │  automatic function calling
-                         ├── search_products(query, category, min_price, max_price) ─► products / categories / promotions CSVs
-                         ├── get_installment_options(price)                         ─► installment rules from the policy
-                         ├── get_order_status(order_id, customer_contact)          ─► orders / order_items / customers CSVs
-                         ├── get_store_policy(topic)                                ─► knowledge/policies.md (one section per topic)
-                         └── handoff_to_human(reason, summary, contact)             ─► handoffs/handoffs.jsonl
+Customer ─► CLI ─► Gemini 3.5 Flash-Lite (persona + rules), automatic function calling
+   ├─ search_products(query, category, min/max_price) ─► products, categories, promotions
+   ├─ get_installment_options(price)                  ─► installment rules (policy)
+   ├─ get_order_status(order_id, customer_contact)    ─► orders, order_items, customers
+   ├─ get_store_policy(topic)                         ─► knowledge/policies.md
+   └─ handoff_to_human(reason, summary, contact)      ─► handoffs/handoffs.jsonl
 ```
 
 ## How to run
