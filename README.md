@@ -3,12 +3,13 @@
 A text-based customer service agent for **Empório da Música**, a (fictional) musical instrument store in Campo Grande/MS.
 It answers customers in Brazilian Portuguese as **Lia**, the store's virtual assistant: it searches the catalog for prices, stock and promotions, checks order status, applies the store policies, refuses out-of-scope requests, and hands complaints over to the human team.
 
-The guiding principle was the one in the challenge e-mail: **solve it in the simplest way possible**. The whole agent is about 300 lines of Python, one LLM, four tools and no vector database.
+The guiding principle was the one in the challenge e-mail: **solve it in the simplest way possible**. The whole agent is under 500 lines of Python (docstrings included), one LLM, five small tools and no vector database.
 
 ```
 Customer ──► CLI ──► Gemini 3.5 Flash-Lite (system prompt = persona + rules)
                          │  automatic function calling
                          ├── search_products(query, category, min_price, max_price) ─► products / categories / promotions CSVs
+                         ├── get_installment_options(price)                         ─► installment rules from the policy
                          ├── get_order_status(order_id, customer_contact)          ─► orders / order_items / customers CSVs
                          ├── get_store_policy(topic)                                ─► knowledge/policies.md (one section per topic)
                          └── handoff_to_human(reason, summary, contact)             ─► handoffs/handoffs.jsonl
@@ -52,7 +53,7 @@ The model can be changed with the `GEMINI_MODEL` environment variable (default `
 | Path | What it is |
 |---|---|
 | `agent/store.py` | Plain functions over the CSVs and the policy file. No LLM code, fully unit-tested. |
-| `agent/tools.py` | The four functions exposed to the model. Type hints and docstrings become the tool schemas. |
+| `agent/tools.py` | The five functions exposed to the model. Type hints and docstrings become the tool schemas. |
 | `agent/prompt.py` | System prompt: persona, tone, information rules, scope. |
 | `agent/chat.py` | The agent: a Gemini chat session with the tools attached. |
 | `agent/__main__.py` | Terminal interface and transcript saving. |
@@ -67,10 +68,10 @@ The model can be changed with the `GEMINI_MODEL` environment variable (default `
 
 The questions customers ask fall into two groups, and each group gets its own kind of tool:
 
-- **Structured data** (price, stock, promotions, orders) → typed Python functions over pandas. A deterministic function computes the promotional price, the PIX price and the stock label, so the model only has to pick the right tool and phrase the answer. A free-form SQL agent would be more flexible, but it lets the model write arbitrary queries over customer data (e.g. list other people's orders) and makes arithmetic the model's job again.
+- **Structured data and arithmetic** (price, stock, promotions, installments, orders) → typed Python functions over pandas. Deterministic code computes the promotional price, the PIX price, the stock label and the allowed installments, so the model only has to pick the right tool and phrase the answer. A free-form SQL agent would be more flexible, but it lets the model write arbitrary queries over customer data (e.g. list other people's orders) and makes arithmetic the model's job again.
 - **Policies** (hours, returns, payment, shipping…) → `get_store_policy(topic)`, which returns one section of the manual. The whole manual is about 3k tokens across 9 well-delimited topics, so embeddings and a vector store would add moving parts without improving retrieval. The valid topics are listed in the tool description and an unknown topic returns the list of valid ones, so the model corrects itself; the tool call also makes "data vs. policy" routing visible in the logs.
 
-I used the Gemini SDK's automatic function calling directly instead of LangChain/LlamaIndex: with four tools, a framework would add more concepts than it removes.
+I used the Gemini SDK's automatic function calling directly instead of LangChain/LlamaIndex: with five tools, a framework would add more concepts than it removes.
 
 ### Model and provider: Gemini 3.5 Flash-Lite via Google AI Studio
 
@@ -129,20 +130,27 @@ The challenge asks us to make reasonable assumptions when something is ambiguous
 
 Real conversations with the agent are in [`examples/`](examples/). Each one includes the tools the agent called and what they returned.
 
-<!-- EXAMPLES_LIST -->
+| # | Scenario | What it shows |
+|---|---|---|
+| [01](examples/01_catalog_search.md) | Violões up to R$ 1,000, then a sold-out model | Search by category + price, PIX price, sold-out/discontinued handling, alternatives |
+| [02](examples/02_store_info.md) | Address, Sunday opening, payment methods | Answers grounded in the policy manual |
+| [03](examples/03_return_policy.md) | "I regret my purchase, can I return it?" | **Non-trivial:** identity check before the order lookup, delivery date vs. 7-day rule, warranty follow-up |
+| [04](examples/04_promotion_and_installments.md) | Promotion, installments, expired Black Friday | **Non-trivial:** promo price shown with original + %, no PIX stacking, installment rules, no expired discounts |
+| [05](examples/05_out_of_scope_and_complaint.md) | Accessories, math, prompt injection, delivery complaint | Scope limits, refusal to leak customer data, handoff to the human team |
 
 ## Problems found while testing
 
-Running real conversations surfaced two problems that the unit tests did not catch:
+Running real conversations surfaced three problems that the unit tests did not catch:
 
 1. **Tool arguments typed as `Literal` broke inside the Gemini SDK.** I first typed `category` and `topic` as `Literal[...]` so the schema would carry an enum. The SDK uses that to describe the tool, but its argument conversion runs `isinstance(value, Literal[...])`, which raises. Every category search and policy lookup failed before reaching my code, and the model worked around it by paging through prices with several calls, which looked like it was "working". Fix: plain `str` parameters with the valid options in the docstring, a helpful error for unknown values, logging of tool errors, and a test that calls the tools through the SDK's own conversion function.
 2. **Searching "violão" by name returned nothing**, because product names never contain the instrument type. The tool description and system prompt now steer the model to the `category` parameter, and an empty name search returns a hint saying so.
+3. **The model got an installment rule wrong.** It said a R$ 439.20 ukulele could be paid in 6x of R$ 73.20, but the policy requires at least R$ 80 per installment from 4x to 6x. Rules that are really arithmetic should not be left to the model, so I added `get_installment_options(price)`, with a unit test for that exact case, and re-ran the conversation (example 04): the agent now answers "up to 5x of R$ 87.84".
 
 ## Known limitations and what I would do with more time
 
 - **No evaluation suite.** Unit tests cover the tools, but not the agent's answers. Next step: a set of ~30 scripted questions with expected tool calls and facts, scored automatically (tool-call match + LLM-as-judge for tone and correctness), run on every prompt change.
 - **Catalog search is keyword-based.** "Something for a kid starting out" relies on the model picking a category and price range. With a larger catalog I would add embedding search over descriptions and specs.
-- **Installments and shipping are explained, not calculated.** The model divides prices by itself. A small `simulate_installments(price)` tool would remove arithmetic errors, and a shipping quote needs a carrier API.
+- **Shipping is explained, not quoted.** A real freight quote needs the customer's CEP and a carrier API (Correios/Jadlog).
 - **Opening hours aren't enforced.** The manual says the bot should tell customers when the team is back if they write outside business hours; the date is in the prompt, but there is no explicit rule for it.
 - **Identity check is minimal.** Knowing an e-mail or phone is enough to see an order. In production I would use a one-time code sent to that contact.
 - **Single-user CLI, in-memory state.** A real deployment would be a WhatsApp webhook (FastAPI) with per-customer sessions in Redis, a read-only database instead of CSVs, and handoffs created in the helpdesk tool.
